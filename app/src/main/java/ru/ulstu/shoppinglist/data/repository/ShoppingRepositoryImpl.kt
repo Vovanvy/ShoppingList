@@ -32,4 +32,8 @@ class ShoppingRepositoryImpl(
     override suspend fun updateItem(item: ShoppingItem) {
         dao.updateItem(item.toEntity())
     }
+
+    override suspend fun deleteCompletedItems() {
+        dao.deleteCompletedItems()
+    }
 }

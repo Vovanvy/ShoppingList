@@ -11,4 +11,7 @@
     <string name="toggle_theme">Сменить тему</string>
     <string name="switch_language">Сменить язык</string>
     <string name="shopping_mode">Режим покупок</string>
+    <string name="clear_completed">Удалить купленное</string>
+    <string name="add_item">Добавить товар</string>
+    <string name="cancel">Отмена</string>
 </resources>

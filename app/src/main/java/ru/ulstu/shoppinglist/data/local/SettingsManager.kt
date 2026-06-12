@@ -21,8 +21,8 @@ class SettingsManager @Inject constructor(
     private val isDarkModeKey = booleanPreferencesKey("is_dark_mode")
     private val languageKey = stringPreferencesKey("language_code")
 
-    val isDarkMode: Flow<Boolean> = context.dataStore.data.map { preferences ->
-        preferences[isDarkModeKey] ?: false
+    val isDarkMode: Flow<Boolean?> = context.dataStore.data.map { preferences ->
+        preferences[isDarkModeKey]
     }
 
     val languageCode: Flow<String> = context.dataStore.data.map { preferences ->

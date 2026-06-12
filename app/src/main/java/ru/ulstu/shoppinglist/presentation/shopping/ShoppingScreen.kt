@@ -1,5 +1,6 @@
 package ru.ulstu.shoppinglist.presentation.shopping
 
+import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,44 +26,90 @@ fun ShoppingScreen(
     viewModel: ShoppingViewModel = hiltViewModel()
 ) {
     val items by viewModel.items.collectAsState()
-    val isDarkMode by viewModel.isDarkMode.collectAsState(initial = false)
+    val isDarkModeStored by viewModel.isDarkMode.collectAsState(initial = null)
     val languageCode by viewModel.languageCode.collectAsState(initial = "en")
+    val isServiceRunning by viewModel.isShoppingModeActive.collectAsState()
+    
+    var showAddDialog by remember { mutableStateOf(false) }
     var itemName by remember { mutableStateOf("") }
     val context = LocalContext.current
+
+    if (showAddDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false },
+            title = { Text(context.resources.getString(R.string.add_item)) },
+            text = {
+                TextField(
+                    value = itemName,
+                    onValueChange = { itemName = it },
+                    placeholder = { Text(context.resources.getString(R.string.enter_item_name)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (itemName.isNotBlank()) {
+                        viewModel.addItem(itemName)
+                        itemName = ""
+                        showAddDialog = false
+                    }
+                }) {
+                    Text(context.resources.getString(R.string.add))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddDialog = false }) {
+                    Text(context.resources.getString(R.string.cancel))
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.shopping_list)) },
+                title = { Text(context.resources.getString(R.string.app_name)) },
                 actions = {
+                    IconButton(onClick = { viewModel.deleteCompletedItems() }) {
+                        Icon(
+                            Icons.Default.DeleteSweep,
+                            contentDescription = context.resources.getString(R.string.clear_completed)
+                        )
+                    }
                     IconButton(onClick = { viewModel.toggleLanguage() }) {
                         Text(languageCode.uppercase())
                     }
                     IconButton(onClick = {
-                        viewModel.toggleDarkMode(!isDarkMode)
+                        viewModel.toggleDarkMode(!(isDarkModeStored ?: false))
                     }) {
                         Icon(
-                            if (isDarkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
-                            contentDescription = stringResource(R.string.toggle_theme)
+                            if (isDarkModeStored == true) Icons.Default.LightMode else Icons.Default.DarkMode,
+                            contentDescription = context.resources.getString(R.string.toggle_theme)
                         )
                     }
                     IconButton(onClick = {
                         val intent = Intent(context, ShoppingService::class.java)
-                        context.startForegroundService(intent)
+                        if (isServiceRunning) {
+                            intent.action = "ACTION_STOP"
+                            context.startService(intent)
+                        } else {
+                            context.startForegroundService(intent)
+                        }
                     }) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.start_shopping))
+                        Icon(
+                            if (isServiceRunning) Icons.Default.Stop else Icons.Default.PlayArrow,
+                            contentDescription = context.resources.getString(
+                                if (isServiceRunning) R.string.stop_shopping else R.string.start_shopping
+                            )
+                        )
                     }
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = {
-                if (itemName.isNotBlank()) {
-                    viewModel.addItem(itemName)
-                    itemName = ""
-                }
-            }) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add))
+            FloatingActionButton(onClick = { showAddDialog = true }) {
+                Icon(Icons.Default.Add, contentDescription = context.resources.getString(R.string.add))
             }
         }
     ) { padding ->
@@ -71,20 +118,6 @@ fun ShoppingScreen(
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextField(
-                    value = itemName,
-                    onValueChange = { itemName = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text(stringResource(R.string.enter_item_name)) }
-                )
-            }
-
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 items(items) { item ->
                     ShoppingListItem(

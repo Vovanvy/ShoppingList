@@ -1,6 +1,7 @@
 package ru.ulstu.shoppinglist.service
 
 import android.app.*
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
@@ -8,6 +9,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.combine
 import ru.ulstu.shoppinglist.MainActivity
 import ru.ulstu.shoppinglist.R
 import ru.ulstu.shoppinglist.domain.model.ShoppingItem
@@ -20,11 +22,19 @@ class ShoppingService : Service() {
     @Inject
     lateinit var repository: ShoppingRepository
 
+    @Inject
+    lateinit var settingsManager: ru.ulstu.shoppinglist.data.local.SettingsManager
+
+    @Inject
+    lateinit var modeTracker: ShoppingModeTracker
+
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var job: Job? = null
+    private var currentLanguage = "en"
 
     override fun onCreate() {
         super.onCreate()
+        modeTracker.setServiceRunning(true)
         createNotificationChannel()
     }
 
@@ -42,7 +52,13 @@ class ShoppingService : Service() {
     private fun startForegroundService() {
         job?.cancel()
         job = serviceScope.launch {
-            repository.getItems().collect { items ->
+            combine(
+                repository.getItems(),
+                settingsManager.languageCode
+            ) { items: List<ShoppingItem>, lang: String ->
+                currentLanguage = lang
+                items
+            }.collect { items ->
                 val nextItem = items.firstOrNull { !it.isCrossedOut }
                 updateNotification(nextItem)
             }
@@ -50,10 +66,11 @@ class ShoppingService : Service() {
     }
 
     private fun updateNotification(item: ShoppingItem?) {
-        val contentText = item?.name ?: getString(R.string.all_items_done)
+        val localeContext = updateLocale(this, currentLanguage)
+        val contentText = item?.name ?: localeContext.getString(R.string.all_items_done)
         
         val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.shopping_list))
+            .setContentTitle(localeContext.getString(R.string.shopping_list))
             .setContentText(contentText)
             .setSmallIcon(android.R.drawable.ic_menu_agenda)
             .setOngoing(true)
@@ -75,14 +92,14 @@ class ShoppingService : Service() {
             )
             notificationBuilder.addAction(
                 android.R.drawable.ic_menu_edit,
-                getString(R.string.cross_out),
+                localeContext.getString(R.string.cross_out),
                 crossOutPendingIntent
             )
         }
 
         notificationBuilder.addAction(
             android.R.drawable.ic_menu_close_clear_cancel,
-            getString(R.string.stop_shopping),
+            localeContext.getString(R.string.stop_shopping),
             PendingIntent.getService(
                 this, 100, Intent(this, ShoppingService::class.java).apply { action = "ACTION_STOP" },
                 PendingIntent.FLAG_IMMUTABLE
@@ -94,6 +111,14 @@ class ShoppingService : Service() {
         } else {
             startForeground(NOTIFICATION_ID, notificationBuilder.build())
         }
+    }
+
+    private fun updateLocale(context: Context, languageCode: String): Context {
+        val locale = java.util.Locale(languageCode)
+        java.util.Locale.setDefault(locale)
+        val config = android.content.res.Configuration(context.resources.configuration)
+        config.setLocale(locale)
+        return context.createConfigurationContext(config)
     }
 
     private fun createNotificationChannel() {
@@ -110,6 +135,7 @@ class ShoppingService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        modeTracker.setServiceRunning(false)
         serviceScope.cancel()
     }
 

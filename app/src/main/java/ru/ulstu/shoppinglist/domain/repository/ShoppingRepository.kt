@@ -9,4 +9,5 @@ interface ShoppingRepository {
     suspend fun insertItem(item: ShoppingItem)
     suspend fun deleteItem(item: ShoppingItem)
     suspend fun updateItem(item: ShoppingItem)
+    suspend fun deleteCompletedItems()
 }

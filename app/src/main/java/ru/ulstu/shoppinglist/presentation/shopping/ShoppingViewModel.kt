@@ -6,17 +6,21 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import ru.ulstu.shoppinglist.data.local.SettingsManager
 import ru.ulstu.shoppinglist.domain.model.ShoppingItem
 import ru.ulstu.shoppinglist.domain.repository.ShoppingRepository
+import ru.ulstu.shoppinglist.service.ShoppingModeTracker
 import javax.inject.Inject
 
 @HiltViewModel
 class ShoppingViewModel @Inject constructor(
     private val repository: ShoppingRepository,
-    private val settingsManager: SettingsManager
+    private val settingsManager: SettingsManager,
+    private val modeTracker: ShoppingModeTracker
 ) : ViewModel() {
 
     val items: StateFlow<List<ShoppingItem>> = repository.getItems()
@@ -24,6 +28,13 @@ class ShoppingViewModel @Inject constructor(
 
     val isDarkMode = settingsManager.isDarkMode
     val languageCode = settingsManager.languageCode
+    val isShoppingModeActive = modeTracker.isServiceRunning
+
+    fun deleteCompletedItems() {
+        viewModelScope.launch {
+            repository.deleteCompletedItems()
+        }
+    }
 
     fun toggleDarkMode(enabled: Boolean) {
         viewModelScope.launch {

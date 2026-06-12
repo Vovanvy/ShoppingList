@@ -11,4 +11,7 @@
     <string name="toggle_theme">Toggle Theme</string>
     <string name="switch_language">Switch Language</string>
     <string name="shopping_mode">Shopping Mode</string>
+    <string name="clear_completed">Clear Completed</string>
+    <string name="add_item">Add Item</string>
+    <string name="cancel">Cancel</string>
 </resources>

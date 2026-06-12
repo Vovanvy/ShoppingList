@@ -20,4 +20,7 @@ interface ShoppingDao {
 
     @Update
     suspend fun updateItem(item: ShoppingItemEntity)
+
+    @Query("DELETE FROM shopping_items WHERE isCrossedOut = 1")
+    suspend fun deleteCompletedItems()
 }
